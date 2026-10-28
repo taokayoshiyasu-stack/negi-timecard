@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>作業終了</title>
+<style>
+  body{margin:0;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:#c0392b;color:#fff;
+       display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center}
+  .box{padding:24px}
+  .big{font-size:28px;font-weight:700;margin-bottom:12px}
+  .vi{font-size:18px;opacity:.9;margin-bottom:20px}
+  .msg{font-size:16px;line-height:1.6;white-space:pre-line}
+  button{margin-top:20px;font-size:18px;padding:12px 24px;border:0;border-radius:10px;background:#fff;color:#c0392b;font-weight:700}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="big">作業終了</div>
+  <div class="vi">Xong việc</div>
+  <div class="msg" id="msg">場所を確認しています…
+Đang lấy vị trí…</div>
+  <button id="retry" style="display:none" onclick="start()">もう一度 / Thử lại</button>
+</div>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+// 南相馬ねぎ出荷組合 作業時刻ボタン（作業終了）2026-10-28
+// 開くと GPS で位置を取り、LINE の個別トークに位置メッセージ「作業終了」を送って閉じる。
+// 記録は Apps Script「LINE記録ボット」の作業時刻.gs が受け取って行う（このページは記録しない）。
+const LIFF_ID = new URLSearchParams(location.search).get('liffId') || '2012249993-yeuSFlfV';
+const msgEl = document.getElementById('msg');
+const retry = document.getElementById('retry');
+function show(t){ msgEl.textContent = t; }
+
+async function send(messages){
+  await liff.sendMessages(messages);
+  liff.closeWindow();
+}
+
+function start(){
+  retry.style.display = 'none';
+  show('場所を確認しています…\nĐang lấy vị trí…');
+  if (!navigator.geolocation) return noLocation('この携帯では場所が取れません');
+  navigator.geolocation.getCurrentPosition(function(pos){
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    show('記録しています…\nĐang ghi…');
+    send([{ type:'location', title:'作業終了', address:'作業終了ボタン（精度 約' + Math.round(pos.coords.accuracy) + 'm）',
+            latitude: lat, longitude: lng }])
+      .catch(function(e){ show('送れませんでした。\nKhông gửi được.\n' + e.message); retry.style.display = 'inline-block'; });
+  }, function(err){
+    noLocation(err.code === 1 ? '場所の利用が許可されていません' : '場所が取れませんでした');
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+
+function noLocation(reason){
+  // 場所が取れなくても、作業終了の時刻だけは記録する
+  show(reason + '\n時刻だけ記録します。\nChỉ ghi giờ.');
+  send([{ type:'text', text:'作業終了（場所なし）' }])
+    .catch(function(e){ show('送れませんでした。\nKhông gửi được.\n' + e.message); retry.style.display = 'inline-block'; });
+}
+
+liff.init({ liffId: LIFF_ID }).then(function(){
+  if (!liff.isInClient()) { show('LINE の中で開いてください。\nHãy mở trong LINE.'); return; }
+  start();
+}).catch(function(e){ show('開けませんでした。\nKhông mở được.\n' + e.message); });
+</script>
+</body>
+</html>
