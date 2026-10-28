@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>自分の記録</title>
+<style>
+  :root{--bg:#f4f6f3;--card:#fff;--ink:#1d2a22;--sub:#66756b;--line:#e2e7e1;--green:#2f7d4a;--red:#c0392b;--sun:#c0392b;--sat:#2c64b0}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Hiragino Sans","Noto Sans JP","Noto Sans Lao","Noto Sans Khmer","Noto Sans Thai",sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--green);color:#fff;padding:16px 16px 14px}
+  .name{font-size:14px;opacity:.9}
+  .title{font-size:20px;font-weight:700;margin-top:2px}
+  .nav{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+  .nav button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:10px;font-size:18px;width:48px;height:40px}
+  .nav button:disabled{opacity:.35}
+  .ym{font-size:22px;font-weight:700}
+  .sum{display:flex;gap:10px;padding:12px 16px}
+  .tile{flex:1;background:var(--card);border-radius:12px;padding:10px 12px;border:1px solid var(--line)}
+  .tile .k{font-size:12px;color:var(--sub)}
+  .tile .v{font-size:24px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+  .list{padding:0 16px 8px}
+  .day{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .top{display:flex;justify-content:space-between;align-items:baseline}
+  .date{font-weight:700;font-size:16px}
+  .date.sun{color:var(--sun)} .date.sat{color:var(--sat)}
+  .work{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+  .row{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font-size:14px;color:var(--sub);font-variant-numeric:tabular-nums}
+  .row b{color:var(--ink);font-weight:600}
+  .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;background:#eef3ee;color:var(--green);margin-left:4px}
+  .tag.warn{background:#fbeceb;color:var(--red)}
+  .msg{padding:32px 16px;text-align:center;color:var(--sub);white-space:pre-line}
+  .note{padding:4px 16px 28px;font-size:12px;color:var(--sub);white-space:pre-line;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <div class="name" id="name"></div>
+  <div class="title" id="title">…</div>
+  <div class="nav">
+    <button id="prev" aria-label="prev">‹</button>
+    <div class="ym" id="ym"></div>
+    <button id="next" aria-label="next">›</button>
+  </div>
+</header>
+<div class="sum" id="sum" style="display:none">
+  <div class="tile"><div class="k" id="kDays"></div><div class="v" id="vDays"></div></div>
+  <div class="tile"><div class="k" id="kTotal"></div><div class="v" id="vTotal"></div></div>
+</div>
+<div class="list" id="list"></div>
+<div class="msg" id="msg">読み込んでいます…
+Đang tải…</div>
+<div class="note" id="note"></div>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+// 南相馬ねぎ出荷組合 自分の記録（2026-10-28）
+// LINE の中で開くと、LINE のアクセストークンを付けて Apps Script「LINE記録ボット」に問い合わせ、
+// 本人の記録だけを表示する。このページ自身は記録を持たない。
+const P = new URLSearchParams(location.search);
+const LIFF_ID = P.get('liffId') || '2012249993-P3XpMvz5';
+const T = {
+  vi:{title:'Bản ghi của bạn',ym:(y,m)=>'Tháng '+m+' / '+y,days:'Số ngày',total:'Tổng (tạm tính)',in:'Vào',out:'Xong',brk:'Nghỉ',team:'nhóm',noloc:'không vị trí',none:'Chưa có bản ghi.',
+      wd:['CN','T2','T3','T4','T5','T6','T7'],notfound:'Bạn chưa được đăng ký.\nHãy bấm nút "Bắt đầu làm" một lần, rồi báo anh Taoka.',err:'Không tải được. Hãy thử lại.',
+      note:'※ Giờ trên đây là tạm tính từ bản ghi LINE. Giờ tính lương sẽ được công ty xác nhận vào cuối tháng.\nNếu thấy sai, hãy báo anh Taoka ngay.'},
+  th:{title:'บันทึกของคุณ',ym:(y,m)=>'เดือน '+m+' / '+y,days:'จำนวนวัน',total:'รวม (ประมาณ)',in:'เข้า',out:'เลิก',brk:'พัก',team:'กลุ่ม',noloc:'ไม่มีตำแหน่ง',none:'ยังไม่มีบันทึก',
+      wd:['อา','จ','อ','พ','พฤ','ศ','ส'],notfound:'ยังไม่ได้ลงทะเบียน\nกดปุ่ม "เข้างาน" หนึ่งครั้ง แล้วบอกคุณ Taoka',err:'โหลดไม่ได้ ลองใหม่อีกครั้ง',
+      note:'※ เวลานี้เป็นเวลาประมาณจากบันทึก LINE เวลาที่ใช้คิดเงินเดือน บริษัทจะยืนยันตอนสิ้นเดือน\nถ้าเห็นว่าผิด บอกคุณ Taoka ทันที'},
+  km:{title:'កំណត់ត្រារបស់អ្នក',ym:(y,m)=>'ខែ '+m+' / '+y,days:'ចំនួនថ្ងៃ',total:'សរុប (ប្រហែល)',in:'ចូល',out:'ចប់',brk:'សម្រាក',team:'ក្រុម',noloc:'គ្មានទីតាំង',none:'មិនទាន់មានកំណត់ត្រា',
+      wd:['អា','ច','អ','ពុ','ព្រ','សុ','ស'],notfound:'មិនទាន់បានចុះឈ្មោះ\nសូមចុចប៊ូតុង "ចូលធ្វើការ" ម្តង ហើយប្រាប់លោក Taoka',err:'មិនអាចផ្ទុកបាន សូមព្យាយាមម្តងទៀត',
+      note:'※ ម៉ោងនេះជាការប៉ាន់ស្មានពីកំណត់ត្រា LINE។ ម៉ោងសម្រាប់គិតប្រាក់ខែ ក្រុមហ៊ុននឹងបញ្ជាក់នៅចុងខែ។\nបើឃើញខុស សូមប្រាប់លោក Taoka ភ្លាម។'},
+  lo:{title:'ບັນທຶກຂອງທ່ານ',ym:(y,m)=>'ເດືອນ '+m+' / '+y,days:'ຈຳນວນມື້',total:'ລວມ (ປະມານ)',in:'ເຂົ້າ',out:'ເລີກ',brk:'ພັກ',team:'ກຸ່ມ',noloc:'ບໍ່ມີສະຖານທີ່',none:'ຍັງບໍ່ມີບັນທຶກ',
+      wd:['ອາ','ຈ','ອ','ພ','ພຫ','ສກ','ສ'],notfound:'ຍັງບໍ່ໄດ້ລົງທະບຽນ\nກົດປຸ່ມ "ເຂົ້າວຽກ" ຄັ້ງໜຶ່ງ ແລ້ວບອກ Taoka',err:'ໂຫຼດບໍ່ໄດ້ ລອງໃໝ່ອີກຄັ້ງ',
+      note:'※ ເວລານີ້ເປັນເວລາປະມານຈາກບັນທຶກ LINE. ເວລາທີ່ໃຊ້ຄິດເງິນເດືອນ ບໍລິສັດຈະຢືນຢັນທ້າຍເດືອນ.\nຖ້າເຫັນວ່າຜິດ ບອກ Taoka ທັນທີ.'},
+  ja:{title:'自分の記録',ym:(y,m)=>y+'年'+m+'月',days:'出勤日数',total:'合計（目安）',in:'出勤',out:'終了',brk:'休憩',team:'班',noloc:'場所なし',none:'まだ記録がありません。',
+      wd:['日','月','火','水','木','金','土'],notfound:'まだ登録されていません。\n【出勤】ボタンを一度押して、田岡に知らせてください。',err:'読み込めませんでした。もう一度開いてください。',
+      note:'※ この時間はLINEの記録からの目安です。給料の時間は月末に会社が確定します。\n違うと思ったら、すぐ田岡に知らせてください。'}
+};
+const $ = id => document.getElementById(id);
+let api = '', offset = Math.max(-12, Math.min(0, parseInt(P.get('m') || '0', 10) || 0)), lang = 'vi';
+
+function showMsg(t){ $('msg').style.display='block'; $('msg').textContent=t; $('list').innerHTML=''; $('sum').style.display='none'; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render(r){
+  lang = T[r.lang] ? r.lang : 'vi'; const L = T[lang];
+  document.documentElement.lang = lang;
+  $('name').textContent = r.name; $('title').textContent = L.title;
+  $('ym').textContent = L.ym(r.year, r.month);
+  $('kDays').textContent = L.days; $('kTotal').textContent = L.total;
+  $('vDays').textContent = r.count; $('vTotal').textContent = r.total;
+  $('note').textContent = L.note;
+  $('prev').disabled = offset <= -12; $('next').disabled = offset >= 0;
+  if (!r.days.length){ showMsg(L.none); return; }
+  $('msg').style.display='none'; $('sum').style.display='flex';
+  $('list').innerHTML = r.days.map(d => {
+    const cls = d.wd === 0 ? 'sun' : d.wd === 6 ? 'sat' : '';
+    return '<div class="day"><div class="top"><div class="date '+cls+'">'+esc(d.md)+' ('+L.wd[d.wd]+')</div>'+
+      '<div class="work">'+esc(d.work || '—')+'</div></div><div class="row">'+
+      '<span>'+L.in+' <b>'+esc(d.start || '—')+'</b></span>'+
+      '<span>'+L.out+' <b>'+esc(d.end || '—')+'</b>'+(d.team?'<span class="tag">'+L.team+'</span>':'')+(d.noLoc?'<span class="tag warn">'+L.noloc+'</span>':'')+'</span>'+
+      (d.brk?'<span>'+L.brk+' <b>'+esc(d.brk)+'</b></span>':'')+
+      (d.field?'<span>📍 <b>'+esc(d.field)+'</b></span>':'')+'</div></div>';
+  }).join('');
+}
+
+async function load(){
+  const L = T[lang];
+  showMsg('…');
+  try {
+    const url = api + '?km=self&m=' + offset + '&t=' + encodeURIComponent(liff.getAccessToken());
+    const res = await fetch(url);
+    const r = await res.json();
+    if (r.error === 'notfound') return showMsg(L.notfound);
+    if (r.error) return showMsg(L.err + '\n(' + r.error + ')');
+    render(r);
+  } catch(e){ showMsg(L.err + '\n(' + e.message + ')'); }
+}
+
+$('prev').onclick = () => { if (offset > -12){ offset--; load(); } };
+$('next').onclick = () => { if (offset < 0){ offset++; load(); } };
+
+liff.init({ liffId: LIFF_ID }).then(() => {
+  const Q = new URLSearchParams(location.search);   // init 後に読み直す（LINE から渡る値）
+  api = Q.get('api') || '';
+  if (Q.get('m') !== null) offset = Math.max(-12, Math.min(0, parseInt(Q.get('m'), 10) || 0));
+  if (!liff.isInClient() && !liff.isLoggedIn()) { liff.login(); return; }
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(api)) { showMsg('設定がありません（api）'); return; }
+  load();
+}).catch(e => showMsg('開けませんでした。\nKhông mở được.\n' + e.message));
+</script>
+</body>
+</html>
