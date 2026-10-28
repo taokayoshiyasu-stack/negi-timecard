@@ -15,6 +15,7 @@
   .nav button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:10px;font-size:18px;width:48px;height:40px}
   .nav button:disabled{opacity:.35}
   .ym{font-size:22px;font-weight:700}
+  .ctag{display:inline-block;margin-left:8px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:8px;background:#fff;color:var(--green);vertical-align:middle}
   .sum{display:flex;gap:10px;padding:12px 16px}
   .tile{flex:1;background:var(--card);border-radius:12px;padding:10px 12px;border:1px solid var(--line)}
   .tile .k{font-size:12px;color:var(--sub)}
@@ -36,7 +37,7 @@
 <body>
 <header>
   <div class="name" id="name"></div>
-  <div class="title" id="title">…</div>
+  <div class="title"><span id="title">…</span><span class="ctag" id="tag" style="display:none"></span></div>
   <div class="nav">
     <button id="prev" aria-label="prev">‹</button>
     <div class="ym" id="ym"></div>
@@ -53,7 +54,7 @@
 <div class="note" id="note"></div>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-// 南相馬ねぎ出荷組合 自分の記録（2026-10-28）
+// 南相馬ねぎ出荷組合 自分の記録（2026-10-28 v1.1 確定タイムカードの月は「確定」と表示）
 // LINE の中で開くと、LINE のアクセストークンを付けて Apps Script「LINE記録ボット」に問い合わせ、
 // 本人の記録だけを表示する。このページ自身は記録を持たない。
 const P = new URLSearchParams(location.search);
@@ -78,7 +79,7 @@ const T = {
 const $ = id => document.getElementById(id);
 let api = '', offset = Math.max(-12, Math.min(0, parseInt(P.get('m') || '0', 10) || 0)), lang = 'vi';
 
-function showMsg(t){ $('msg').style.display='block'; $('msg').textContent=t; $('list').innerHTML=''; $('sum').style.display='none'; }
+function showMsg(t){ $('tag').style.display='none'; $('msg').style.display='block'; $('msg').textContent=t; $('list').innerHTML=''; $('sum').style.display='none'; }
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function render(r){
@@ -86,9 +87,10 @@ function render(r){
   document.documentElement.lang = lang;
   $('name').textContent = r.name; $('title').textContent = L.title;
   $('ym').textContent = L.ym(r.year, r.month);
-  $('kDays').textContent = L.days; $('kTotal').textContent = L.total;
+  $('kDays').textContent = L.days; $('kTotal').textContent = r.totalLabel || L.total;
   $('vDays').textContent = r.count; $('vTotal').textContent = r.total;
-  $('note').textContent = L.note;
+  $('note').textContent = r.note || L.note;
+  $('tag').textContent = r.tag || ''; $('tag').style.display = r.tag ? 'inline-block' : 'none';
   $('prev').disabled = offset <= -12; $('next').disabled = offset >= 0;
   if (!r.days.length){ showMsg(L.none); return; }
   $('msg').style.display='none'; $('sum').style.display='flex';
